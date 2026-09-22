@@ -45,16 +45,23 @@ npm run preview
 npm run check
 node scripts/validate-atlas.mjs
 node scripts/validate-interactions.mjs
+node scripts/validate-ar.mjs
 npm run build
 ```
 
-`npm run validate` runs both data/interaction validators. Atlas validation checks
+`npm run validate` runs the data, interaction, and AR validators. Atlas validation checks
 unique IDs, systems, nonempty educational data, concept membership, reciprocal
 connections, finite nondegenerate triangles, positive dimensions, and geometry
 containment within packing bounds. It validates the actual procedural geometry,
 not just the catalog. Interaction validation checks selection, visibility,
 isolation, aliases, typo search, touch/mouse gesture cancellation, and 114 packed
 layouts across viewport ratios, presets, and individual systems.
+
+AR validation checks secure-context support detection, surface orientation,
+placement/reset transitions, bounded scaling, tap/drag/pinch cancellation, and
+the session coordinator using deterministic XR doubles. It covers optional DOM
+Overlay, selection event order, tracking loss, startup failures, repeated sessions,
+and sessions ending while asynchronous setup is still in flight.
 
 For browser tests, keep `npm run dev` running in another terminal:
 
@@ -79,6 +86,71 @@ hardware-GPU performance, screen-reader announcements, or a live Vercel deployme
 Synthetic multitouch cancellation is covered by the gesture and browser checks; it is
 not a claim of real-device testing. The optional external-model loader and
 WebMCP integration are not included in this version.
+
+## Tabletop AR
+
+Use an AR-capable Android device and a browser that supports WebXR
+`immersive-ar` with **hit-test** and **local** reference space (for example,
+Chrome on an ARCore-compatible device with Google Play Services for AR).
+Support is detected at runtime; a browser name alone does not guarantee support.
+Open the site as a top-level page over **HTTPS** and allow the browser's camera/AR
+permission prompt. An ordinary `http://192.168.…` LAN address is not a secure
+context. For USB development, Chrome's port forwarding or `adb reverse tcp:5173
+tcp:5173` lets the phone open `http://localhost:5173`, which is treated as secure.
+Otherwise use a trusted HTTPS development host. No camera-based fallback or VR
+mode is provided.
+
+1. Tap **Enter AR**, which appears only after a successful capability check.
+2. Move the phone slowly over a well-lit, textured tabletop. A pale green ring
+   marks a detected horizontal surface; walls and steep slopes are ignored.
+3. Tap the ring to place the PC. It starts about **32 cm tall** with its feet on
+   the table, facing you. The model stays in local world space as you walk around.
+4. Drag horizontally to rotate, pinch to resize between **16 and 64 cm** tall,
+   or briefly tap a component to highlight it and inspect its existing details.
+5. **Reposition** discards the old surface and requires a fresh placement.
+   **Reset size / turn** restores the original size and orientation at the same
+   location. **End AR** or the browser's exit control restores the desktop view.
+
+AR uses the assembled open-sided PC and a separate explorer state. Desktop
+filters, layout, selection, camera and controls are preserved for the return.
+The original instanced meshes, metadata, picking and highlight path are reused;
+there is no second PC model. While presenting, XR supplies the camera and frame
+loop and OrbitControls is disabled. Once placed, new hit-test results cannot
+move the model. Tracking-origin resets are rebased when the runtime provides a
+transform; otherwise a fresh placement is requested. This is session-local
+placement, not a persistent anchor saved across sessions.
+
+DOM Overlay is optional. When granted, compact touch controls and the existing
+scrollable inspector are shown over the camera feed. Without it, a small XR
+panel provides the same placement controls and a component name/description
+from the shared catalog. XR target rays drive picking and gesture coordinates;
+secondary screen input sources supply pinch input. Overlay controls suppress
+XR selection so pressing a button cannot also select/place the PC.
+
+`npm run test:browser` also runs `scripts/ar-browser-check.mjs`: unsupported and
+insecure contexts, a rejected capability query, denied session permission, and
+the real React/Three scene driven by a **test-only** XR runtime. It checks
+placement, the shared inspector, reset/reposition, native exit, reentry, and
+pixel-identical desktop restoration with the demand renderer returning to idle.
+Reports and screenshots are saved under `artifacts/`. These tests do not emulate
+physical surface detection, camera passthrough, real multitouch, or tracking drift.
+
+Before shipping to devices, test on an AR-capable Android phone over HTTPS:
+
+- Permission grant/deny, hit-test availability, a real tabletop, and wall rejection.
+- Tap-to-place, walking around the PC, slow/fast drags, and two-finger scaling at
+  both limits without accidental component selection.
+- Small component picking, scrolling/closing details, and controls not triggering
+  scene input; check a device/runtime without DOM Overlay when available.
+- Reposition, reset, orientation changes, tracking loss/recovery, browser pause,
+  browser-native exit, repeated entry, and restoration from an inventory or
+  isolated desktop view. Check performance on the device's GPU.
+
+No physical WebXR device was available during this implementation. The automated
+checks establish application behavior, not real-world tracking quality. API
+references: [WebXR Device API](https://www.w3.org/TR/webxr/),
+[DOM Overlay](https://www.w3.org/TR/webxr-dom-overlays-1/), and the installed
+Three.js 0.180.0 `WebXRManager` implementation.
 
 ## Data
 

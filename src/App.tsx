@@ -38,6 +38,13 @@ import {
 } from "../lib/catalog";
 import { PIECES } from "../lib/geometry";
 import {
+  detectARSupport,
+  initialARStatus,
+  type ARCommands,
+  type ARStatus,
+  type ARSupport,
+} from "../lib/ar";
+import {
   initialState,
   isVisible,
   PRESETS,
@@ -48,7 +55,30 @@ import {
 } from "../lib/interactions";
 const AtlasScene = lazy(() => import("./scene/AtlasScene"));
 export default function App() {
-  const [state, setState] = useState(initialState);
+  const [desktopState, setDesktopState] = useState(initialState);
+  const [arState, setARState] = useState(initialState);
+  const [arStatus, setARStatus] = useState(initialARStatus);
+  const [arSupport, setARSupport] = useState<ARSupport>("checking");
+  const [arCommands, setARCommands] = useState<ARCommands | null>(null);
+  const activeAR = useRef(false);
+  const state = arStatus.active ? arState : desktopState;
+  const setState = arStatus.active ? setARState : setDesktopState;
+  const handleARStatus = useCallback((next: ARStatus) => {
+    if (next.active && !activeAR.current) setARState(initialState);
+    activeAR.current = next.active;
+    setARStatus(next);
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    void detectARSupport(window.isSecureContext, navigator.xr).then(
+      (support) => {
+        if (!cancelled) setARSupport(support);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [searchOpen, setSearchOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -62,12 +92,15 @@ export default function App() {
   const results = searchParts(query);
   const visible = PIECES.filter((p) => isVisible(p, state));
   const choose = useCallback((id: string, mesh?: string) => {
-    setState((s) => selectConcept(s, id, mesh));
+    (activeAR.current ? setARState : setDesktopState)((s) =>
+      selectConcept(s, id, mesh),
+    );
     setSearchOpen(false);
     setLayersOpen(false);
   }, []);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      if (arStatus.active) return;
       if (
         e.key === "/" &&
         !(e.target instanceof HTMLInputElement) &&
@@ -86,7 +119,7 @@ export default function App() {
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [searchOpen, layersOpen, aboutOpen]);
+  }, [searchOpen, layersOpen, aboutOpen, arStatus.active]);
   function reset() {
     setState({ ...initialState, revision: state.revision + 1 });
     setPreset("internals");
@@ -228,7 +261,29 @@ export default function App() {
     </>
   );
   return (
-    <div className="atlas-app">
+    <div className={`atlas-app ${arStatus.active ? "ar-active" : ""}`}>
+      {arStatus.active && (
+        <div className="ar-controls" data-ar-ui>
+          <p role="status">{arStatus.message}</p>
+          <div role="group" aria-label="AR controls">
+            <Button
+              variant="outline"
+              onClick={() => arCommands?.reposition()}
+              disabled={arStatus.phase !== "placed"}
+            >
+              Reposition
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => arCommands?.reset()}
+              disabled={arStatus.phase !== "placed"}
+            >
+              Reset size / turn
+            </Button>
+            <Button onClick={() => arCommands?.end()}>End AR</Button>
+          </div>
+        </div>
+      )}
       <header className="app-header">
         <a className="brand" href="/" aria-label="Computer Atlas home">
           <span className="brand-mark">
@@ -302,6 +357,17 @@ export default function App() {
               <SlidersHorizontal size={16} />
               <span>Systems</span>
             </Button>
+            {arSupport === "supported" && arCommands && (
+              <Button
+                className="enter-ar"
+                variant="outline"
+                disabled={arStatus.starting}
+                onClick={arCommands.enter}
+              >
+                <Box size={17} />
+                {arStatus.starting ? "Starting AR…" : "Enter AR"}
+              </Button>
+            )}
             <span className="model-badge">
               <span className="status-dot" />
               {ready ? "INTERACTIVE 3D" : "PREPARING 3D"}
@@ -316,7 +382,13 @@ export default function App() {
                 </div>
               }
             >
-              <AtlasScene state={state} onSelect={choose} onReady={setReady} />
+              <AtlasScene
+                state={state}
+                onSelect={choose}
+                onReady={setReady}
+                onARStatus={handleARStatus}
+                onARCommands={setARCommands}
+              />
             </Suspense>
             {visible.length === 0 && (
               <div className="empty-state">
@@ -411,6 +483,11 @@ export default function App() {
             </div>
           </div>
           <div className="viewer-footer">
+            {!arStatus.active && arStatus.message && (
+              <p className="ar-error" role="alert">
+                {arStatus.message}
+              </p>
+            )}
             <div className="explore-toolbar">
               <div
                 className="view-tabs"
@@ -758,6 +835,14 @@ export default function App() {
               desktop PC. Explore {PIECES.length} original procedural pieces
               across twelve hardware systems.
             </Dialog.Description>
+            <p>
+              <strong>Tabletop AR</strong>{" "}
+              {arSupport === "insecure"
+                ? "Open this page over HTTPS to check AR support."
+                : arSupport === "supported"
+                  ? "Use Enter AR to place a 32 cm PC on a tabletop. Allow camera access, move slowly, then tap the ring."
+                  : "Try this page over HTTPS in an AR-capable Android browser with surface detection. This browser can still explore the full desktop model."}
+            </p>
             <div className="about-facts">
               <p>
                 <Check size={16} />

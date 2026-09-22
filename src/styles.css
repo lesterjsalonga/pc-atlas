@@ -2014,3 +2014,154 @@ p {
     font-size: 10px;
   }
 }
+
+/* Immersive AR reuses the inspector inside the optional DOM overlay. */
+.enter-ar {
+  min-height: 44px;
+}
+.viewer-heading:has(.enter-ar) .model-badge {
+  display: none;
+}
+.ar-error {
+  color: #8c4032;
+  font-size: 13px;
+  max-width: 40rem;
+  padding: 8px 12px;
+}
+.ar-active {
+  background: transparent;
+}
+.atlas-app::backdrop {
+  background: transparent;
+}
+.ar-active {
+  position: fixed;
+  inset: 0;
+  min-height: 0;
+  touch-action: none;
+}
+.ar-active .app-header,
+.ar-active .sidebar,
+.ar-active .viewer-heading,
+.ar-active .viewer-footer,
+.ar-active .camera-tools,
+.ar-active .scene-caption,
+.ar-active .app-footer,
+.ar-active .empty-state,
+.ar-active .hover-label {
+  display: none;
+}
+.ar-active .workspace {
+  display: block;
+  background: transparent;
+}
+.ar-active .viewer,
+.ar-active .scene-area {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+.ar-active .scene-canvas {
+  position: absolute;
+  inset: 0;
+}
+/* The immersive compositor draws the WebGL layer, not the overlay's canvas. */
+.ar-active .scene-canvas canvas {
+  visibility: hidden;
+}
+.ar-controls {
+  position: absolute;
+  z-index: 10;
+  top: max(12px, env(safe-area-inset-top));
+  left: 12px;
+  right: 12px;
+  margin-inline: auto;
+  max-width: 520px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  background: #fcfdfbf2;
+  box-shadow: 0 3px 20px #253b3320;
+}
+.ar-controls p {
+  font-size: 13px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+.ar-controls [role="group"] {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.ar-controls .ui-button {
+  min-height: 44px;
+  padding-inline: 12px;
+  font-size: 13px;
+}
+.ar-controls .ui-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.ar-active .detail-panel {
+  position: absolute;
+  z-index: 9;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  left: 12px;
+  right: 12px;
+  width: auto;
+  max-width: 520px;
+  margin-inline: auto;
+  height: auto;
+  max-height: min(42dvh, 400px);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fcfdfbf2;
+  box-shadow: 0 3px 20px #253b3320;
+  touch-action: pan-y;
+}
+.ar-active .detail-top {
+  flex-shrink: 0;
+  padding: 8px 14px;
+}
+.ar-active .detail-top button {
+  min-height: 44px;
+  min-width: 44px;
+}
+.ar-active .detail-scroll {
+  overflow-y: auto;
+  padding: 0 16px 16px;
+}
+.ar-active .detail-actions {
+  display: none;
+}
+.ar-active .connection-list button {
+  min-height: 44px;
+}
+@media (max-width: 380px) {
+  .ar-controls {
+    padding: 9px;
+    left: 8px;
+    right: 8px;
+  }
+  .ar-controls .ui-button {
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+  .viewer-heading:has(.enter-ar) {
+    flex-wrap: wrap;
+  }
+}
+@media (orientation: landscape) and (max-height: 550px) {
+  .ar-controls {
+    left: 12px;
+    right: auto;
+    width: 46%;
+  }
+  .ar-active .detail-panel {
+    left: auto;
+    right: 12px;
+    width: 46%;
+    max-height: calc(100dvh - 24px);
+  }
+}

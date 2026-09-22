@@ -12,8 +12,8 @@
     "build": "tsc -b && vite build",
     "check": "tsc -b && eslint .",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
-    "validate": "node scripts/validate-atlas.mjs && node scripts/validate-interactions.mjs",
-    "test:browser": "node scripts/browser-check.mjs"
+    "validate": "node scripts/validate-atlas.mjs && node scripts/validate-interactions.mjs && node scripts/validate-ar.mjs",
+    "test:browser": "node scripts/browser-check.mjs && node scripts/ar-browser-check.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.15",

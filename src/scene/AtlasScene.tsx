@@ -11,11 +11,15 @@ import {
 } from "../../lib/interactions";
 import { packInventory, pieceBounds } from "../../lib/layout";
 import { createGeometry } from "./shapes";
+import { createTabletopAR } from "./TabletopAR";
+import type { ARCommands, ARStatus } from "../../lib/ar";
 
 interface Props {
   state: ExplorerState;
   onSelect: (id: string, mesh?: string) => void;
   onReady: (ready: boolean) => void;
+  onARStatus: (status: ARStatus) => void;
+  onARCommands: (commands: ARCommands | null) => void;
 }
 interface Instance {
   piece: Piece;
@@ -27,11 +31,17 @@ interface Instance {
   targetScale: number;
   visible: boolean;
 }
-export default function AtlasScene({ state, onSelect, onReady }: Props) {
+export default function AtlasScene({
+  state,
+  onSelect,
+  onReady,
+  onARStatus,
+  onARCommands,
+}: Props) {
   const host = useRef<HTMLDivElement>(null);
   const api = useRef<{ update: (s: ExplorerState) => void } | null>(null);
-  const latest = useRef({ state, onSelect, onReady });
-  latest.current = { state, onSelect, onReady };
+  const latest = useRef({ state, onSelect, onReady, onARStatus, onARCommands });
+  latest.current = { state, onSelect, onReady, onARStatus, onARCommands };
   const [error, setError] = useState("");
   const [hover, setHover] = useState("");
   useEffect(() => {
@@ -67,10 +77,16 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
     canvas.tabIndex = 0;
     el.appendChild(canvas);
     const scene = new T.Scene();
+    const model = new T.Group();
+    model.name = "PC assembly";
+    scene.add(model);
+    let ar: ReturnType<typeof createTabletopAR> | null = null;
     const perspective = new T.PerspectiveCamera(36, 1, 0.01, 300);
     const orthographic = new T.OrthographicCamera(-4, 4, 4, -4, 0.01, 300);
     let camera: T.PerspectiveCamera | T.OrthographicCamera = perspective;
     let aspect = 1;
+    let desktopWidth = 0,
+      desktopHeight = 0;
     camera.position.set(7, 4.7, 8);
     const controls = new OrbitControls(camera, canvas);
     controls.enableDamping = true;
@@ -132,7 +148,7 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
       batch.instanceMatrix.setUsage(T.DynamicDrawUsage);
       batch.frustumCulled = false;
       batch.userData.parts = parts;
-      scene.add(batch);
+      model.add(batch);
       batches.push(batch);
       parts.forEach((piece, i) => {
         const instance: Instance = {
@@ -156,16 +172,18 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
       pointer = new T.Vector2(),
       tap = new TapGesture();
     const connectionGroup = new T.Group();
-    scene.add(connectionGroup);
+    model.add(connectionGroup);
     const goalPosition = new T.Vector3(),
       goalTarget = new T.Vector3();
     let current = latest.current.state;
     let frames = 0;
+    let matricesDirty = true;
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
     function schedule() {
-      if (!disposed && !frame) frame = requestAnimationFrame(render);
+      if (!disposed && !ar?.active && !frame)
+        frame = requestAnimationFrame(() => render());
     }
     function fit(bounds: T.Box3, front = false) {
       if (bounds.isEmpty()) return;
@@ -312,8 +330,9 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
         if (b.instanceColor) b.instanceColor.needsUpdate = true;
       schedule();
     }
-    function update(s: ExplorerState) {
+    function update(s: ExplorerState, refit = true) {
       current = s;
+      matricesDirty = true;
       const visible = PIECES.filter((p) => isVisible(p, current));
       const inventory = current.mode === "inventory";
       const layout = packInventory(visible, aspect);
@@ -341,7 +360,7 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
           );
         }
       }
-      grid.visible = !inventory && !current.isolate;
+      grid.visible = !ar?.active && !inventory && !current.isolate;
       ground.visible = grid.visible;
       controls.enableRotate = !inventory;
       paint();
@@ -350,10 +369,11 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
         batch.visible = (batch.userData.parts as Piece[]).some((p) =>
           isVisible(p, current),
         );
-      fit(
-        allBounds(!!current.selected && !current.connections),
-        inventory && current.explode === 100,
-      );
+      if (!ar?.active && refit)
+        fit(
+          allBounds(!!current.selected && !current.connections),
+          inventory && current.explode === 100,
+        );
       canvas.dataset.visible = String(visible.length);
       canvas.dataset.mode = current.mode;
       canvas.dataset.selected = current.selected || "";
@@ -361,33 +381,40 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
       canvas.dataset.projection = inventory ? "orthographic" : "perspective";
       schedule();
     }
-    function render() {
-      frame = 0;
+    function render(xr = false) {
+      if (!xr) frame = 0;
       if (disposed) return;
       let moving = false;
-      const speed = reduceMotion ? 1 : 0.16;
-      for (const i of instances) {
-        if (
-          i.position.distanceToSquared(i.target) > 0.00000005 ||
-          Math.abs(i.scale - i.targetScale) > 0.00005
-        ) {
-          i.position.lerp(i.target, speed);
-          i.scale = T.MathUtils.lerp(i.scale, i.targetScale, speed);
-          moving = true;
-        } else {
-          i.position.copy(i.target);
-          i.scale = i.targetScale;
+      const speed = xr || reduceMotion ? 1 : 0.16;
+      if (!xr || matricesDirty) {
+        for (const i of instances) {
+          if (
+            i.position.distanceToSquared(i.target) > 0.00000005 ||
+            Math.abs(i.scale - i.targetScale) > 0.00005
+          ) {
+            i.position.lerp(i.target, speed);
+            i.scale = T.MathUtils.lerp(i.scale, i.targetScale, speed);
+            moving = true;
+          } else {
+            i.position.copy(i.target);
+            i.scale = i.targetScale;
+          }
+          dummy.position.copy(i.position);
+          dummy.rotation.set(...i.piece.rotation);
+          dummy.scale
+            .set(...i.piece.size)
+            .multiplyScalar(i.visible ? i.scale : 0);
+          dummy.updateMatrix();
+          i.batch.setMatrixAt(i.index, dummy.matrix);
         }
-        dummy.position.copy(i.position);
-        dummy.rotation.set(...i.piece.rotation);
-        dummy.scale
-          .set(...i.piece.size)
-          .multiplyScalar(i.visible ? i.scale : 0);
-        dummy.updateMatrix();
-        i.batch.setMatrixAt(i.index, dummy.matrix);
+        for (const b of batches) {
+          b.instanceMatrix.needsUpdate = true;
+          // Raycasting must use bounds for the current instance layout.
+          b.boundingSphere = null;
+        }
+        matricesDirty = !xr && moving;
       }
-      for (const b of batches) b.instanceMatrix.needsUpdate = true;
-      if (focusCamera) {
+      if (!xr && focusCamera) {
         camera.position.lerp(goalPosition, speed);
         controls.target.lerp(goalTarget, speed);
         if (
@@ -399,18 +426,22 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
           focusCamera = false;
         } else moving = true;
       }
-      const orbiting = controls.update();
-      renderer.render(scene, camera);
+      const orbiting = !xr && controls.update();
+      if (!xr) renderer.render(scene, camera);
       canvas.dataset.frames = String(++frames);
       canvas.dataset.drawCalls = String(renderer.info.render.calls);
       canvas.dataset.ready = "true";
       canvas.dataset.moving = String(moving || orbiting);
-      if (moving || orbiting) schedule();
+      if (!xr && (moving || orbiting)) schedule();
     }
     function resize() {
+      if (ar?.active) return;
       const w = el.clientWidth,
         h = el.clientHeight;
       if (!w || !h) return;
+      if (w === desktopWidth && h === desktopHeight) return;
+      desktopWidth = w;
+      desktopHeight = h;
       renderer.setSize(w, h);
       aspect = w / h;
       perspective.aspect = aspect;
@@ -424,7 +455,11 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
         1 - ((e.clientY - r.top) / r.height) * 2,
       );
       ray.setFromCamera(pointer, camera);
-      const hits = ray.intersectObjects(batches, false);
+      return pick(ray);
+    }
+    function pick(pickingRay: T.Raycaster) {
+      model.updateMatrixWorld(true);
+      const hits = pickingRay.intersectObjects(batches, false);
       for (const h of hits) {
         const p = (h.object.userData.parts as Piece[])[h.instanceId!];
         if (index.get(p.id)?.visible) return p;
@@ -432,10 +467,12 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
       return null;
     }
     const down = (e: PointerEvent) => {
+      if (ar?.active) return;
       tap.start(e.pointerId, e.clientX, e.clientY, e.pointerType === "touch");
       focusCamera = false;
     };
     const move = (e: PointerEvent) => {
+      if (ar?.active) return;
       tap.move(e.pointerId, e.clientX, e.clientY);
       if (e.buttons || e.pointerType === "touch") return;
       const p = hit(e);
@@ -447,6 +484,7 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
       }
     };
     const up = (e: PointerEvent) => {
+      if (ar?.active) return;
       if (!tap.finish(e.pointerId, e.clientX, e.clientY) || e.button !== 0)
         return;
       const p = hit(e);
@@ -459,6 +497,7 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
       paint();
     };
     const keydown = (e: KeyboardEvent) => {
+      if (ar?.active) return;
       if (e.key === "Home") {
         fit(allBounds(), current.mode === "inventory");
         e.preventDefault();
@@ -486,6 +525,7 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
     };
     const lost = (e: Event) => {
       e.preventDefault();
+      ar?.commands.end();
       setError(
         "The 3D connection was interrupted. Reload the page to restart the viewer.",
       );
@@ -500,7 +540,90 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
     controls.addEventListener("change", schedule);
     const observer = new ResizeObserver(resize);
     observer.observe(el);
-    api.current = { update };
+    // Capture both cameras: XR uses its own camera and never writes into these.
+    let desktop: {
+      state: ExplorerState;
+      camera: T.PerspectiveCamera | T.OrthographicCamera;
+      target: T.Vector3;
+      focus: boolean;
+      enabled: boolean;
+      hoverId: string | null;
+    } | null = null;
+    const assembledBounds = new T.Box3();
+    for (const p of PIECES) {
+      const b = pieceBounds(p);
+      const c = new T.Vector3(...(b.center as Vec3));
+      const half = new T.Vector3(...(b.size as Vec3)).multiplyScalar(0.5);
+      assembledBounds.expandByPoint(c.clone().sub(half));
+      assembledBounds.expandByPoint(c.clone().add(half));
+    }
+    ar = createTabletopAR({
+      renderer,
+      scene,
+      model,
+      overlay: el.closest<HTMLElement>(".atlas-app")!,
+      bounds: assembledBounds,
+      onStatus: (status) => latest.current.onARStatus(status),
+      onEnter: () => {
+        desktop = {
+          state: current,
+          camera,
+          target: controls.target.clone(),
+          focus: focusCamera,
+          enabled: controls.enabled,
+          hoverId,
+        };
+        cancelAnimationFrame(frame);
+        frame = 0;
+        controls.enabled = false;
+        grid.visible = ground.visible = false;
+        hoverId = null;
+        setHover("");
+        canvas.style.cursor = "default";
+      },
+      onRestore: () => {
+        if (!desktop) return;
+        camera = desktop.camera;
+        controls.object = camera;
+        controls.target.copy(desktop.target);
+        controls.enabled = desktop.enabled;
+        focusCamera = desktop.focus;
+        hoverId = desktop.hoverId;
+        const hovered = hoverId && index.get(hoverId)?.piece;
+        setHover(
+          hovered
+            ? `${BY_ID.get(hovered.conceptId)!.name} · ${hovered.name}`
+            : "",
+        );
+        canvas.style.cursor = hovered ? "pointer" : "grab";
+        const w = desktopWidth,
+          h = desktopHeight;
+        if (w && h) {
+          renderer.setSize(w, h);
+          aspect = w / h;
+          perspective.aspect = aspect;
+          perspective.updateProjectionMatrix();
+        }
+        update(desktop.state, false);
+        desktop = null;
+        schedule();
+      },
+      render: () => render(true),
+      select: (xrRay) => {
+        const p = pick(xrRay);
+        if (p) latest.current.onSelect(p.conceptId, p.id);
+      },
+      details: () => {
+        const selected = current.selected && BY_ID.get(current.selected);
+        return selected ? `${selected.name}: ${selected.description}` : "";
+      },
+    });
+    api.current = {
+      update: (s) => {
+        if (s !== current) update(s);
+      },
+    };
+    latest.current.onARCommands(ar.commands);
     resize();
     latest.current.onReady(true);
     return () => {
@@ -508,6 +631,15 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
       cancelAnimationFrame(frame);
       observer.disconnect();
       controls.dispose();
+      canvas.removeEventListener("pointerdown", down);
+      canvas.removeEventListener("pointermove", move);
+      canvas.removeEventListener("pointerup", up);
+      canvas.removeEventListener("pointercancel", cancel);
+      canvas.removeEventListener("pointerleave", leave);
+      canvas.removeEventListener("keydown", keydown);
+      canvas.removeEventListener("webglcontextlost", lost);
+      controls.removeEventListener("change", schedule);
+      latest.current.onARCommands(null);
       clearConnections();
       for (const b of batches) {
         b.geometry.dispose();
@@ -518,7 +650,7 @@ export default function AtlasScene({ state, onSelect, onReady }: Props) {
       ground.geometry.dispose();
       ground.material.dispose();
       env.dispose();
-      renderer.dispose();
+      void ar?.dispose().then(() => renderer.dispose());
       canvas.remove();
       api.current = null;
     };

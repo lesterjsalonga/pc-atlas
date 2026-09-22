@@ -18,11 +18,28 @@ async function settle(page) {
     {},
     { timeout: 45000 },
   );
+  // React effects, ResizeObserver, and the demand-rendered scene can start
+  // on the next frame. Do not accept the previous view's idle flag.
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(null))),
+      ),
+  );
   await page.waitForFunction(
     () => document.querySelector("canvas")?.dataset.moving === "false",
     {},
     { timeout: 45000 },
   );
+  const frames = await page.locator("canvas").getAttribute("data-frames");
+  await page.waitForTimeout(120);
+  if ((await page.locator("canvas").getAttribute("data-frames")) !== frames) {
+    await page.waitForFunction(
+      () => document.querySelector("canvas")?.dataset.moving === "false",
+      {},
+      { timeout: 45000 },
+    );
+  }
 }
 async function search(page, q, name) {
   await page.getByRole("button", { name: "Search parts", exact: true }).click();

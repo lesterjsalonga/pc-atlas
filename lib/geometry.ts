@@ -543,19 +543,20 @@ export function buildPieces(): Piece[] {
     );
   function cable(
     id: string,
-    start: Vec3,
-    end: Vec3,
+    route: Vec3[],
     count: number,
     color: string,
+    spread: Vec3,
+    connector: Vec3,
+    connectorSize: Vec3,
   ) {
     for (let i = 0; i < count; i++) {
-      const d = (i - (count - 1) / 2) * 0.035;
-      const path: Vec3[] = [
-        start,
-        [start[0] + 0.5, start[1] + 0.17, start[2] + d],
-        [end[0] + 0.15, (start[1] + end[1]) / 2, 0.94 + d],
-        [end[0], end[1], end[2] + d],
-      ];
+      const d = (i - (count - 1) / 2) * 0.04;
+      const path = route.map((point, index) => {
+        // PSU leads leave its side face in parallel before the bundle turns.
+        const offset: Vec3 = index < 2 ? [0, 1, 0] : spread;
+        return point.map((v, j) => v + offset[j] * d) as Vec3;
+      });
       add(
         id,
         `Cable strand ${i + 1}`,
@@ -569,13 +570,109 @@ export function buildPieces(): Piece[] {
         path,
       );
     }
-    add(id, "Cable connector", end, [0.22, 0.15, 0.21], black);
+    add(id, "Cable connector", connector, connectorSize, black);
   }
-  cable("atx-cable", [-0.01, -1.62, 0.46], [1.02, 0.53, -0.18], 8, "#aa9269");
-  cable("eps-cable", [-0.01, -1.72, 0.34], [-0.91, 1.59, -0.19], 4, "#7b8c89");
-  cable("gpu-cable", [-0.01, -1.66, 0.64], [0.98, -0.28, 0.89], 6, "#82958b");
-  cable("sata-power", [-0.01, -1.75, 0.7], [1.12, -1.3, 0.21], 3, "#8b7d65");
-  cable("sata-data", [0.94, -0.48, -0.18], [1.21, -1.26, 0.19], 1, "#ab7d6c");
+  // Route the main power bundles behind the board, then around its edges.
+  // Short approach segments keep the spline clear of neighbouring components.
+  cable(
+    "atx-cable",
+    [
+      [-0.03, -1.62, 0.4],
+      [0.16, -1.62, 0.4],
+      [0.42, -1.62, 0.22],
+      [0.5, -1.62, -0.36],
+      [0.55, -1.56, -0.54],
+      [0.85, -1.5, -0.54],
+      [1.24, -1.3, -0.54],
+      [1.28, -0.85, -0.54],
+      [1.28, 0.1, -0.54],
+      [1.28, 0.35, -0.54],
+      [1.28, 0.53, -0.42],
+      [1.25, 0.53, -0.1],
+      [1.12, 0.53, -0.025],
+      [1.03, 0.53, -0.08],
+    ],
+    8,
+    "#aa9269",
+    [0, 1, 0],
+    [1.03, 0.53, -0.19],
+    [0.16, 0.34, 0.22],
+  );
+  cable(
+    "eps-cable",
+    [
+      [-0.03, -1.82, -0.38],
+      [0.13, -1.82, -0.38],
+      [0.23, -1.65, -0.5],
+      [0.23, -1.38, -0.54],
+      [0.12, -1.07, -0.54],
+      [-0.65, -1.0, -0.54],
+      [-0.92, -0.8, -0.54],
+      [-0.92, 1.55, -0.54],
+      [-0.92, 1.84, -0.54],
+      [-0.92, 1.92, -0.4],
+      [-0.92, 1.84, -0.16],
+      [-0.92, 1.69, -0.16],
+    ],
+    4,
+    "#7b8c89",
+    [1, 0, 0],
+    [-0.92, 1.62, -0.22],
+    [0.22, 0.15, 0.24],
+  );
+  // Graphics power rises beside the end of the card, outside both fan sweeps.
+  cable(
+    "gpu-cable",
+    [
+      [-0.03, -1.7, 0.87],
+      [0.2, -1.7, 0.87],
+      [0.5, -1.66, 0.88],
+      [0.64, -1.45, 0.9],
+      [0.65, -1.03, 0.91],
+      [1.08, -0.88, 0.91],
+      [1.2, -0.68, 0.91],
+      [1.2, -0.34, 0.91],
+      [1.12, -0.29, 0.91],
+    ],
+    6,
+    "#82958b",
+    [0, 0, 1],
+    [1.075, -0.29, 0.91],
+    [0.14, 0.15, 0.25],
+  );
+  // Separate SATA power and data approaches meet the drive's rear edge.
+  cable(
+    "sata-power",
+    [
+      [-0.03, -1.92, 0.05],
+      [0.2, -1.92, 0.05],
+      [0.64, -1.83, 0.06],
+      [0.94, -1.57, 0.07],
+      [1.02, -1.35, 0.08],
+      [1.02, -1.24, 0.12],
+    ],
+    3,
+    "#8b7d65",
+    [1, 0, 0],
+    [1.02, -1.24, 0.16],
+    [0.2, 0.1, 0.1],
+  );
+  cable(
+    "sata-data",
+    [
+      [0.93, -0.49, -0.13],
+      [1.07, -0.49, -0.11],
+      [1.2, -0.64, -0.1],
+      [1.23, -0.97, -0.02],
+      [1.28, -1.18, 0.06],
+      [1.28, -1.24, 0.12],
+    ],
+    1,
+    "#ab7d6c",
+    [1, 0, 0],
+    [1.28, -1.24, 0.16],
+    [0.12, 0.1, 0.1],
+  );
   add(
     "pcie-x1",
     "PCIe x1 socket",

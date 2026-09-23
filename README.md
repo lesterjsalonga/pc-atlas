@@ -46,18 +46,24 @@ npm run preview
 ```sh
 npm run check
 node scripts/validate-atlas.mjs
+node scripts/validate-cables.mjs
 node scripts/validate-interactions.mjs
 node scripts/validate-ar.mjs
 npm run build
 ```
 
-`npm run validate` runs the data, interaction, and AR validators. Atlas validation checks
+`npm run validate` runs the data, cable routing, interaction, and AR validators. Atlas validation checks
 unique IDs, systems, nonempty educational data, concept membership, reciprocal
 connections, finite nondegenerate triangles, positive dimensions, and geometry
 containment within packing bounds. It validates the actual procedural geometry,
 not just the catalog. Interaction validation checks selection, visibility,
 isolation, aliases, typo search, touch/mouse gesture cancellation, and 114 packed
 layouts across viewport ratios, presets, and individual systems.
+
+Cable validation samples each rendered spline with its tube radius and a clearance
+margin against solid component bounds. The CPU and 24-pin bundles run behind the
+motherboard; GPU and SATA leads route around the card and drive. Only intentional
+contact at the source socket and cable's own plug is allowed.
 
 AR validation checks secure-context support detection, surface orientation,
 placement/reset transitions, bounded scaling, tap/drag/pinch cancellation, and
@@ -185,8 +191,8 @@ See [attribution](public/ATTRIBUTION.md).
 The React UI lazy-loads the Three.js scene. The scene batches shared shapes and
 materials with `InstancedMesh`; a raycast's instance index resolves to an
 individual piece. Hidden batches are disabled. The default complete scene has
-about 58 draw calls and 25,812 triangles. It schedules frames only for changes,
-camera damping, and transitions; an automated idle test checks that frame counts
+about 58 draw calls and 50,580 triangles. It schedules frames for changes,
+camera damping, transitions, and enabled fan animation; an automated idle test checks that frame counts
 stop changing. Resources are disposed on teardown. The environment lighting is
 generated locally with Three.js's RoomEnvironment; no HDR file is downloaded.
 

@@ -24,7 +24,7 @@ export function createGeometry(piece: Piece): T.BufferGeometry {
     case "tube":
       return new T.TubeGeometry(
         new T.CatmullRomCurve3(piece.path!.map((p) => new T.Vector3(...p))),
-        24,
+        Math.max(24, (piece.path!.length - 1) * 12),
         0.014,
         6,
         false,

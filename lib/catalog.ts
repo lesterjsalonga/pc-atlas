@@ -113,7 +113,13 @@ export interface Concept {
   specs: { label: string; value: string }[];
   connectsTo: Connection[];
 }
-export type Shape = "box" | "cylinder" | "ring" | "blade" | "tube";
+export type Shape =
+  | "box"
+  | "cylinder"
+  | "ring"
+  | "blade"
+  | "tube"
+  | "rear-panel";
 export interface Piece {
   id: string;
   name: string;
@@ -157,8 +163,8 @@ concept(
   "chassis",
   "ATX chassis",
   "enclosure",
-  ["case", "tower", "frame"],
-  "The metal skeleton of this mid-tower PC holds the motherboard, drives, fans, and power supply in position.",
+  ["case", "tower", "frame", "rear panel", "back cover"],
+  "The metal frame and rear panel of this mid-tower PC hold the motherboard, drives, fans, and power supply in position. Rear openings expose the exhaust fan, motherboard ports, expansion-card connectors, and power supply.",
   "Provides mounting points and a path for cooling air.",
   [
     ["Format", "Mid-tower, ATX"],

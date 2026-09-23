@@ -1,6 +1,6 @@
 # Computer Atlas
 
-An interactive, procedural 3D desktop computer explorer. Inspect **562 selectable
+An interactive, procedural 3D desktop computer explorer. Inspect **567 selectable
 pieces**, **38 named components**, and **12 hardware systems**. React, TypeScript,
 Vite, imperative Three.js, Tailwind, and shadcn-style Radix UI components. No API
 keys, account, backend, or remote model download is required.
@@ -15,6 +15,9 @@ keys, account, backend, or remote model download is required.
   A separation slider animates between the assembled and separated positions.
 - Use **Fans** to switch spinning on or off for the CPU, case, and graphics-card
   fans. Animation starts off, pauses in Inventory view, and also works in AR.
+- The fixed rear chassis panel has an exhaust-fan opening, motherboard and
+  expansion-card port cutouts, ventilation slots, and a power-supply opening.
+  It remains visible when the removable side panels are hidden.
 - Search names, aliases (RAM, DIMM, memory stick), component IDs, mesh IDs (such
   as `cpu-1`), or systems.
   Typo tolerance includes queries such as `memroy`. Press `/` to search, arrow
@@ -191,7 +194,7 @@ See [attribution](public/ATTRIBUTION.md).
 The React UI lazy-loads the Three.js scene. The scene batches shared shapes and
 materials with `InstancedMesh`; a raycast's instance index resolves to an
 individual piece. Hidden batches are disabled. The default complete scene has
-about 58 draw calls and 50,580 triangles. It schedules frames for changes,
+about 59 draw calls and 51,308 triangles. It schedules frames for changes,
 camera damping, transitions, and enabled fan animation; an automated idle test checks that frame counts
 stop changing. Resources are disposed on teardown. The environment lighting is
 generated locally with Three.js's RoomEnvironment; no HDR file is downloaded.

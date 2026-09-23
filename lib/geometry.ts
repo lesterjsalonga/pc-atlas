@@ -317,7 +317,7 @@ export function buildPieces(): Piece[] {
   fan(
     "rear-fan",
     "Rear exhaust",
-    [-1.55, 1.17, 0.36],
+    [-1.55, 1.17, 0.7],
     0.51,
     [0, Math.PI / 2, 0],
     [-1, 0, 0],
@@ -697,23 +697,23 @@ export function buildPieces(): Piece[] {
   add(
     "network-card",
     "Network RJ45 port",
-    [-1.37, -0.77, 0.04],
-    [0.2, 0.2, 0.27],
+    [-1.5, -0.77, 0.04],
+    [0.38, 0.2, 0.27],
     silver,
   );
   for (let i = 0; i < 6; i++)
     add(
       "rear-io",
       `Rear USB / Ethernet housing ${i + 1}`,
-      [-1.38, 0.04 + i * 0.22, -0.13],
-      [0.21, 0.17, 0.42],
+      [-1.49, 0.49 + i * 0.22, -0.13],
+      [0.4, 0.17, 0.42],
       silver,
     );
   for (let i = 0; i < 6; i++)
     add(
       "rear-io",
       "Port opening",
-      [-1.492, 0.04 + i * 0.22, -0.13],
+      [-1.696, 0.49 + i * 0.22, -0.13],
       [0.008, 0.09, 0.25],
       black,
     );
@@ -721,7 +721,7 @@ export function buildPieces(): Piece[] {
     add(
       "rear-io",
       "Audio jack",
-      [-1.39, -0.56 + i * 0.15, -0.13],
+      [-1.64, -0.11 + i * 0.15, -0.13],
       [0.1, 0.1, 0.19],
       ["#91ad8d", "#ba8d88", "#91a2b9"][i],
       "cylinder",
@@ -732,8 +732,8 @@ export function buildPieces(): Piece[] {
     add(
       "display-ports",
       `Digital display socket ${i + 1}`,
-      [-1.46, -0.33, 0.06 + i * 0.34],
-      [0.15, 0.12, 0.22],
+      [-1.56, -0.33, 0.06 + i * 0.34],
+      [0.26, 0.12, 0.22],
       silver,
     );
   add(
@@ -820,6 +820,30 @@ export function buildPieces(): Piece[] {
     [0, Math.PI / 2, 0],
     [1, 0, 0],
   );
+  // The fixed rear face remains visible with the removable side panels hidden.
+  // Its openings are cut through the geometry, so picking reaches the hardware.
+  add(
+    "chassis",
+    "Rear chassis panel",
+    [-1.69, 0, 0.34],
+    [2.05, 4.25, 0.055],
+    steel,
+    "rear-panel",
+    [0, Math.PI / 2, 0],
+    [-1, 0, 0],
+  );
+  for (const y of [1.17 - 0.4386, 1.17 + 0.4386])
+    for (const z of [0.7 - 0.4386, 0.7 + 0.4386])
+      add(
+        "screws",
+        "Rear exhaust mounting screw",
+        [-1.73, y, z],
+        [0.075, 0.075, 0.03],
+        silver,
+        "cylinder",
+        [0, Math.PI / 2, 0],
+        [-1, 0, 0],
+      );
   return pieces;
 }
 export const PIECES = buildPieces();

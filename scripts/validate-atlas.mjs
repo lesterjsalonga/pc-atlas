@@ -6,7 +6,16 @@ const { createGeometry } = await import("../src/scene/shapes.ts");
 const { rotateFanBlade } = await import("../src/scene/fans.ts");
 const { pieceBounds } = await import("../lib/layout.ts");
 const { default: assert } = await import("node:assert/strict");
-const { Matrix4, Euler, Quaternion, Vector3, Object3D } = await import("three");
+const {
+  Matrix4,
+  Euler,
+  Quaternion,
+  Vector3,
+  Object3D,
+  Mesh,
+  MeshBasicMaterial,
+  Raycaster,
+} = await import("three");
 assert.ok(
   PIECES.length >= 300 && PIECES.length <= 800,
   `Piece count ${PIECES.length}`,
@@ -108,6 +117,46 @@ for (const p of PIECES) {
   }
   g.dispose();
 }
+// Rear openings must be actual holes, allowing picking/visibility of the fan,
+// ports and PSU, while the surrounding steel still intercepts selection rays.
+const rear = PIECES.find((p) => p.shape === "rear-panel");
+const rearMesh = new Mesh(createGeometry(rear), new MeshBasicMaterial());
+rearMesh.position.set(...rear.position);
+rearMesh.rotation.set(...rear.rotation);
+rearMesh.scale.set(...rear.size);
+rearMesh.updateMatrixWorld(true);
+function hitsRear(y, z) {
+  return (
+    new Raycaster(new Vector3(-3, y, z), new Vector3(1, 0, 0)).intersectObject(
+      rearMesh,
+    ).length > 0
+  );
+}
+for (const [y, z] of [
+  [1.17, 0.7],
+  [1.57, 0.7],
+  [1.17, 1.1],
+  [0.49, -0.13],
+  [-0.11, -0.13],
+  [-0.33, 0.4],
+  [-0.77, 0.04],
+  [-1.69, 0.32],
+  [-1.14, 0.5],
+])
+  assert.equal(
+    hitsRear(y, z),
+    false,
+    `Rear opening at ${y}, ${z} is unobstructed`,
+  );
+for (const [y, z] of [
+  [1.9, 0.7],
+  [0.25, 0.6],
+  [-1.69, 1.32],
+])
+  assert.equal(hitsRear(y, z), true, `Rear steel at ${y}, ${z} is selectable`);
+rearMesh.geometry.dispose();
+rearMesh.material.dispose();
+
 // Validate every mounting plane: blades must orbit their own hub, including
 // both GPU fans and both intake fans, while static frames remain untouched.
 const rotors = new Set();

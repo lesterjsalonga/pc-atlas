@@ -1,6 +1,6 @@
 # Computer Atlas — source and credits
 
-All 562 computer pieces, the catalog text, and the application were authored
+All 567 computer pieces, the catalog text, and the application were authored
 for this project. Geometry is procedural: boxes, cylinders, rings, extruded
 fan blades, and tube cables. There are no externally sourced 3D models,
 textures, photographs, fonts, logos, anatomy data, or other downloaded visual

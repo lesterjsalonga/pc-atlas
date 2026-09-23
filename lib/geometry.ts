@@ -290,6 +290,11 @@ export function buildPieces(): Piece[] {
       p.position = p.position.map((v, j) => v + center[j]) as Vec3;
       p.rotation = [rotation[0], rotation[1], p.rotation[2]];
       p.axis = axis;
+      if (p.shape === "blade")
+        p.rotor = {
+          center,
+          axis: rotation[1] ? [1, 0, 0] : rotation[0] ? [0, -1, 0] : [0, 0, 1],
+        };
     }
   }
   fan("cpu-fan", "CPU cooler fan", [-0.4, 0.79, 1.03], 0.53);

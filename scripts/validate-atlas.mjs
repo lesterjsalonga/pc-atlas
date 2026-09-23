@@ -3,9 +3,10 @@ register();
 const { CATALOG, SYSTEMS } = await import("../lib/catalog.ts");
 const { PIECES } = await import("../lib/geometry.ts");
 const { createGeometry } = await import("../src/scene/shapes.ts");
+const { rotateFanBlade } = await import("../src/scene/fans.ts");
 const { pieceBounds } = await import("../lib/layout.ts");
 const { default: assert } = await import("node:assert/strict");
-const { Matrix4, Euler, Quaternion, Vector3 } = await import("three");
+const { Matrix4, Euler, Quaternion, Vector3, Object3D } = await import("three");
 assert.ok(
   PIECES.length >= 300 && PIECES.length <= 800,
   `Piece count ${PIECES.length}`,
@@ -107,6 +108,53 @@ for (const p of PIECES) {
   }
   g.dispose();
 }
+// Validate every mounting plane: blades must orbit their own hub, including
+// both GPU fans and both intake fans, while static frames remain untouched.
+const rotors = new Set();
+for (const piece of PIECES) {
+  const object = new Object3D();
+  object.position.set(...piece.position);
+  object.rotation.set(...piece.rotation);
+  const before = object.position.clone();
+  const orientation = object.quaternion.clone();
+  rotateFanBlade(piece, Math.PI / 2, object, 1);
+  if (!piece.rotor) {
+    assert.deepEqual(object.position, before, `${piece.id} is stationary`);
+    assert.ok(object.quaternion.equals(orientation));
+    continue;
+  }
+  rotors.add(piece.rotor.center.join(","));
+  const center = new Vector3(...piece.rotor.center);
+  const axis = new Vector3(...piece.rotor.axis);
+  const start = before.clone().sub(center);
+  const end = object.position.clone().sub(center);
+  assert.ok(
+    Math.abs(start.length() - end.length()) < 1e-8,
+    `${piece.id} stays at its hub radius`,
+  );
+  assert.ok(
+    Math.abs(start.dot(axis) - end.dot(axis)) < 1e-8,
+    `${piece.id} stays in its mounting plane`,
+  );
+  assert.ok(
+    before.distanceTo(object.position) > 0.1,
+    `${piece.id} orbits instead of spinning in place`,
+  );
+  assert.ok(
+    new Vector3(0, 0, 1).applyQuaternion(object.quaternion).distanceTo(axis) <
+      1e-8,
+  );
+  // An exploded layout translation must not change the rotor's orbit.
+  const shifted = new Object3D();
+  const shift = new Vector3(2, 1, -3);
+  shifted.position.copy(before).add(shift);
+  shifted.rotation.set(...piece.rotation);
+  rotateFanBlade(piece, Math.PI / 2, shifted, 1);
+  assert.ok(
+    shifted.position.distanceTo(object.position.clone().add(shift)) < 1e-8,
+  );
+}
+assert.equal(rotors.size, 6, "All six fan assemblies animate independently");
 console.log(
   `Atlas valid: ${PIECES.length} selectable pieces, ${CATALOG.length} concepts, ${SYSTEMS.length} systems, ${triangles.toLocaleString()} triangles. All geometry finite, nondegenerate, and inside layout bounds; connections reciprocal.`,
 );

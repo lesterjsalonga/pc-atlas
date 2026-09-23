@@ -127,6 +127,7 @@ export interface Piece {
   axis: Vec3;
   panel?: boolean;
   path?: Vec3[];
+  rotor?: { center: Vec3; axis: Vec3 };
 }
 
 const concepts: Concept[] = [];

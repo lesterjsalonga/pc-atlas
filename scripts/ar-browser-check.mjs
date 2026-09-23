@@ -263,6 +263,42 @@ try {
   const before = await page.locator("canvas").screenshot();
   await page.getByRole("button", { name: "Enter AR", exact: true }).click();
   await page.getByRole("button", { name: "End AR", exact: true }).waitFor();
+  const help = page.getByRole("button", {
+    name: "AR instructions",
+    exact: true,
+  });
+  const instructions = page.getByRole("region", { name: "How to use AR" });
+  assert.equal(await help.getAttribute("aria-expanded"), "true");
+  assert.match(
+    await instructions.innerText(),
+    /Press down on the circle marker/,
+  );
+  await page.screenshot({ path: "artifacts/ar-instructions-open.png" });
+  for (const [width, height] of [
+    [320, 568],
+    [844, 390],
+  ]) {
+    await page.setViewportSize({ width, height });
+    const bounds = await page.locator(".ar-controls").boundingBox();
+    assert.ok(
+      bounds.x >= 0 && bounds.x + bounds.width <= width,
+      "AR help fits screen width",
+    );
+    assert.ok(
+      bounds.y >= 0 && bounds.y + bounds.height <= height,
+      "AR help fits screen height",
+    );
+    await page.screenshot({
+      path: `artifacts/ar-instructions-${width}x${height}.png`,
+    });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Close AR instructions" }).click();
+  assert.equal(await instructions.count(), 0);
+  await help.click();
+  assert.equal(await instructions.isVisible(), true);
+  await help.click();
+  assert.equal(await instructions.count(), 0);
   await page
     .getByText("Move slowly to find a tabletop.", { exact: true })
     .waitFor();
@@ -276,9 +312,19 @@ try {
     window.testXR.hit = true;
   });
   await page
-    .getByText("Tap the ring to place your PC.", { exact: true })
+    .getByText("Press the circle marker to spawn your PC.", { exact: true })
     .waitFor();
   await page.screenshot({ path: "artifacts/ar-overlay-placement.png" });
+  assert.equal(
+    await help.evaluate(
+      (element) =>
+        !element.dispatchEvent(
+          new Event("beforexrselect", { bubbles: true, cancelable: true }),
+        ),
+    ),
+    true,
+    "AR help consumes XR selection so the same touch cannot place the PC",
+  );
   await page.evaluate(() => window.testXR.session.tap());
   await page
     .getByText("Drag to rotate · Pinch to resize · Tap a part", { exact: true })
@@ -294,12 +340,21 @@ try {
     .getByRole("complementary", { name: "Component details" })
     .waitFor();
   await page.screenshot({ path: "artifacts/ar-overlay-details.png" });
+  const fans = page.getByRole("switch", { name: "Spin fans", exact: true });
+  await fans.click();
+  await page.waitForFunction(
+    () => document.querySelector("canvas").dataset.fansSpinning === "true",
+  );
+  await fans.click();
+  await page.waitForFunction(
+    () => document.querySelector("canvas").dataset.fansSpinning === "false",
+  );
   await page
     .getByRole("button", { name: "Reset size / turn", exact: true })
     .click();
   await page.getByRole("button", { name: "Reposition", exact: true }).click();
   await page
-    .getByText("Tap the ring to place your PC.", { exact: true })
+    .getByText("Press the circle marker to spawn your PC.", { exact: true })
     .waitFor();
   await page.getByRole("button", { name: "End AR", exact: true }).click();
   await page.waitForFunction(() => !document.querySelector(".ar-active"));
@@ -323,6 +378,11 @@ try {
   assert.equal(await page.evaluate(() => window.testXR.cancelled), 1);
   await page.getByRole("button", { name: "Enter AR", exact: true }).click();
   await page.getByRole("button", { name: "End AR", exact: true }).waitFor();
+  assert.equal(
+    await help.getAttribute("aria-expanded"),
+    "true",
+    "New sessions show help again",
+  );
   await page.evaluate(() => window.testXR.session.end());
   await page.waitForFunction(() => !document.querySelector(".ar-active"));
   await ready(page);

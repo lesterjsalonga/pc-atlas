@@ -18,6 +18,10 @@ export async function detectARSupport(
 export const TABLETOP_HEIGHT = 0.32;
 export const MIN_AR_SCALE = 0.5;
 export const MAX_AR_SCALE = 2;
+export const AR_PLACEMENT_INSTRUCTIONS =
+  "Move your phone slowly to find a flat surface. Press down on the circle marker (tap once) to spawn your PC in AR.";
+export const AR_GESTURE_INSTRUCTIONS =
+  "Drag to rotate. Pinch to resize. Tap a part to inspect it.";
 export type ARPhase = "searching" | "ready" | "placed";
 export interface ARStatus {
   active: boolean;
@@ -25,6 +29,7 @@ export interface ARStatus {
   phase: ARPhase;
   overlay: boolean;
   message: string;
+  helpOpen: boolean;
 }
 export const initialARStatus: ARStatus = {
   active: false,
@@ -32,12 +37,14 @@ export const initialARStatus: ARStatus = {
   phase: "searching",
   overlay: false,
   message: "",
+  helpOpen: false,
 };
 export interface ARCommands {
   enter: () => void;
   reposition: () => void;
   reset: () => void;
   end: () => void;
+  toggleHelp: () => void;
 }
 export class PlacementState {
   phase: ARPhase = "searching";

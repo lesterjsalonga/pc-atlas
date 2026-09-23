@@ -22,6 +22,8 @@ interface Options {
   render: () => void;
   select: (ray: T.Raycaster) => void;
   details: () => string;
+  fansOn: () => boolean;
+  toggleFans: () => void;
 }
 
 /** Owns the immersive session, reference-space placement and input lifecycle.
@@ -127,6 +129,9 @@ export function createTabletopAR(options: Options) {
     placement.reset();
     resetInput();
     if (placement.phase === "placed") transform();
+  }
+  function toggleHelp() {
+    publish({ helpOpen: !status.helpOpen });
   }
   async function end() {
     if (!session || ended) return;
@@ -320,6 +325,8 @@ export function createTabletopAR(options: Options) {
       if (action === "reposition") reposition();
       if (action === "reset") reset();
       if (action === "end") void end();
+      if (action === "help") toggleHelp();
+      if (action === "fans") options.toggleFans();
       return;
     }
     if (placement.phase !== "placed") {
@@ -430,7 +437,7 @@ export function createTabletopAR(options: Options) {
         message: !tracking
           ? "Tracking paused. Move slowly in good light."
           : reticle.visible
-            ? "Tap the ring to place your PC."
+            ? "Press the circle marker to spawn your PC."
             : "Move slowly to find a tabletop.",
       });
     } else
@@ -440,7 +447,12 @@ export function createTabletopAR(options: Options) {
           : "Tracking paused. Move slowly in good light.",
       });
     hud.mesh.visible = !status.overlay && tracking;
-    hud.update(status.message, options.details());
+    hud.update(
+      status.message,
+      options.details(),
+      status.helpOpen,
+      options.fansOn(),
+    );
     options.render();
     renderer.render(scene, xrCamera);
   }
@@ -502,6 +514,7 @@ export function createTabletopAR(options: Options) {
         active: true,
         starting: false,
         overlay: !!session.domOverlayState,
+        helpOpen: true,
         message: "Move slowly to find a tabletop.",
       });
     } catch {
@@ -533,6 +546,7 @@ export function createTabletopAR(options: Options) {
       },
       reposition,
       reset,
+      toggleHelp,
       end: () => {
         void end();
       },

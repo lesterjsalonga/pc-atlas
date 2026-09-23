@@ -17,6 +17,7 @@ import {
   ChevronRight,
   CircleHelp,
   Cpu,
+  Fan,
   Focus,
   Grid2X2,
   Layers3,
@@ -39,6 +40,8 @@ import {
 import { PIECES } from "../lib/geometry";
 import {
   detectARSupport,
+  AR_PLACEMENT_INSTRUCTIONS,
+  AR_GESTURE_INSTRUCTIONS,
   initialARStatus,
   type ARCommands,
   type ARStatus,
@@ -60,6 +63,8 @@ export default function App() {
   const [arStatus, setARStatus] = useState(initialARStatus);
   const [arSupport, setARSupport] = useState<ARSupport>("checking");
   const [arCommands, setARCommands] = useState<ARCommands | null>(null);
+  const [fansOn, setFansOn] = useState(false);
+  const toggleFans = useCallback(() => setFansOn((on) => !on), []);
   const activeAR = useRef(false);
   const state = arStatus.active ? arState : desktopState;
   const setState = arStatus.active ? setARState : setDesktopState;
@@ -260,11 +265,42 @@ export default function App() {
       </div>
     </>
   );
+  const fanControl = (
+    <label className="fan-control">
+      <Fan size={17} aria-hidden="true" />
+      <span>Fans</span>
+      <Switch
+        checked={fansOn}
+        onCheckedChange={setFansOn}
+        aria-label="Spin fans"
+      />
+      <span className="fan-status">
+        {fansOn && state.mode === "inventory"
+          ? "Paused in inventory"
+          : fansOn
+            ? "On"
+            : "Off"}
+      </span>
+    </label>
+  );
   return (
     <div className={`atlas-app ${arStatus.active ? "ar-active" : ""}`}>
       {arStatus.active && (
         <div className="ar-controls" data-ar-ui>
-          <p role="status">{arStatus.message}</p>
+          <div className="ar-status-row">
+            <p role="status">{arStatus.message}</p>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="AR instructions"
+              aria-expanded={arStatus.helpOpen}
+              aria-controls="ar-instructions"
+              title="AR instructions"
+              onClick={() => arCommands?.toggleHelp()}
+            >
+              <CircleHelp size={21} />
+            </Button>
+          </div>
           <div role="group" aria-label="AR controls">
             <Button
               variant="outline"
@@ -282,6 +318,28 @@ export default function App() {
             </Button>
             <Button onClick={() => arCommands?.end()}>End AR</Button>
           </div>
+          {fanControl}
+          {arStatus.helpOpen && (
+            <section
+              className="ar-instructions"
+              id="ar-instructions"
+              aria-label="How to use AR"
+            >
+              <div className="ar-instructions-heading">
+                <h2>Place your PC in AR</h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close AR instructions"
+                  onClick={() => arCommands?.toggleHelp()}
+                >
+                  <X size={18} />
+                </Button>
+              </div>
+              <p>{AR_PLACEMENT_INSTRUCTIONS}</p>
+              <p>{AR_GESTURE_INSTRUCTIONS}</p>
+            </section>
+          )}
         </div>
       )}
       <header className="app-header">
@@ -384,12 +442,15 @@ export default function App() {
             >
               <AtlasScene
                 state={state}
+                fansOn={fansOn}
+                onToggleFans={toggleFans}
                 onSelect={choose}
                 onReady={setReady}
                 onARStatus={handleARStatus}
                 onARCommands={setARCommands}
               />
             </Suspense>
+            <div className="scene-fan-control">{fanControl}</div>
             {visible.length === 0 && (
               <div className="empty-state">
                 <Layers3 size={26} />

@@ -130,6 +130,7 @@ function setup({
     selects = 0,
     loop = null,
     status;
+  let fansOn = false;
   let requested;
   const hitSource = {
     cancel() {
@@ -210,6 +211,10 @@ function setup({
       selects++;
     },
     details: () => "Desktop processor: runs instructions.",
+    fansOn: () => fansOn,
+    toggleFans: () => {
+      fansOn = !fansOn;
+    },
   });
   let surface = new T.Matrix4().makeTranslation(0, -0.4, -1),
     tracking = true;
@@ -266,8 +271,8 @@ function setup({
       (child) => child.geometry?.type === "PlaneGeometry",
     );
     const target = new T.Vector3(
-      (column + 0.5) / 3 - 0.5,
-      -0.35,
+      column === "help" ? 968 / 1024 - 0.5 : (column + 0.5) / 4 - 0.5,
+      column === "help" ? 0.5 - 44 / 320 : -0.35,
       0,
     ).applyMatrix4(panel.matrixWorld);
     tap(source(target.x / -target.z, target.y / -target.z));
@@ -294,7 +299,16 @@ function setup({
       tracking = value;
     },
     get stats() {
-      return { status, cancelled, restores, enters, selects, loop, requested };
+      return {
+        status,
+        cancelled,
+        restores,
+        enters,
+        selects,
+        loop,
+        requested,
+        fansOn,
+      };
     },
   };
 }
@@ -317,6 +331,20 @@ for (const overlay of [true, false]) {
   h.surface(new T.Matrix4().makeTranslation(0, -0.4, -1));
   h.tick();
   assert.equal(h.stats.status.phase, "ready");
+  assert.equal(h.stats.status.helpOpen, true, "Help opens on entry");
+  if (overlay) h.ar.commands.toggleHelp();
+  else h.hudTap("help");
+  assert.equal(h.stats.status.helpOpen, false, "Help can close");
+  if (overlay) h.ar.commands.toggleHelp();
+  else h.hudTap("help");
+  assert.equal(h.stats.status.helpOpen, true, "Help can reopen");
+  assert.equal(h.model.visible, false, "Help cannot place the model");
+  if (!overlay) {
+    h.hudTap(3);
+    assert.equal(h.stats.fansOn, true, "Native HUD toggles fans on");
+    h.hudTap(3);
+    assert.equal(h.stats.fansOn, false, "Native HUD toggles fans off");
+  }
   h.tap(h.source(1));
   assert.equal(h.model.visible, false, "Must tap the reticle");
   h.tap();
@@ -410,6 +438,7 @@ for (const overlay of [true, false]) {
   h.ar.commands.enter();
   await nextTurn();
   assert.equal(h.stats.status.phase, "searching", "Reentry has no stale hit");
+  assert.equal(h.stats.status.helpOpen, true, "Help reopens in a new session");
   await h.ar.dispose();
   assert.equal(h.scene.children.length, 1, "All XR resources detached");
 }

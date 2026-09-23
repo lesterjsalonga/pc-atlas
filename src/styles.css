@@ -2048,7 +2048,8 @@ p {
 .ar-active .scene-caption,
 .ar-active .app-footer,
 .ar-active .empty-state,
-.ar-active .hover-label {
+.ar-active .hover-label,
+.ar-active .scene-fan-control {
   display: none;
 }
 .ar-active .workspace {
@@ -2084,10 +2085,73 @@ p {
   background: #fcfdfbf2;
   box-shadow: 0 3px 20px #253b3320;
 }
-.ar-controls p {
+.ar-controls > .ar-status-row p {
   font-size: 13px;
   text-align: center;
-  margin-bottom: 10px;
+  flex: 1;
+  margin: 0;
+}
+.ar-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ar-status-row .button-icon {
+  flex-shrink: 0;
+  min-width: 44px;
+}
+.scene-fan-control {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fcfdfbf2;
+}
+.fan-control {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+.fan-status {
+  color: #586c5c;
+  font-size: 11px;
+}
+.ar-controls > .fan-control {
+  justify-content: center;
+  margin-top: 4px;
+}
+.ar-instructions {
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  max-height: min(35dvh, 220px);
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+.ar-instructions-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ar-instructions h2 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.ar-instructions p {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 8px;
+}
+.ar-instructions p:last-child {
+  color: #586c5c;
+  font-size: 12px;
 }
 .ar-controls [role="group"] {
   display: flex;

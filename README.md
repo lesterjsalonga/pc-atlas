@@ -13,6 +13,8 @@ keys, account, backend, or remote model download is required.
   only, Bare motherboard, Cooling & airflow, Power path, Memory & storage.
 - Switch between assembled, mounting-axis exploded, and packed inventory views.
   A separation slider animates between the assembled and separated positions.
+- Use **Fans** to switch spinning on or off for the CPU, case, and graphics-card
+  fans. Animation starts off, pauses in Inventory view, and also works in AR.
 - Search names, aliases (RAM, DIMM, memory stick), component IDs, mesh IDs (such
   as `cpu-1`), or systems.
   Typo tolerance includes queries such as `memroy`. Press `/` to search, arrow
@@ -101,9 +103,11 @@ Otherwise use a trusted HTTPS development host. No camera-based fallback or VR
 mode is provided.
 
 1. Tap **Enter AR**, which appears only after a successful capability check.
+   Placement instructions open automatically. Close them with **×** or **?**,
+   and use **?** to reopen them at any time during the session.
 2. Move the phone slowly over a well-lit, textured tabletop. A pale green ring
    marks a detected horizontal surface; walls and steep slopes are ignored.
-3. Tap the ring to place the PC. It starts about **32 cm tall** with its feet on
+3. Press down on the circle marker (tap once) to spawn the PC. It starts about **32 cm tall** with its feet on
    the table, facing you. The model stays in local world space as you walk around.
 4. Drag horizontally to rotate, pinch to resize between **16 and 64 cm** tall,
    or briefly tap a component to highlight it and inspect its existing details.

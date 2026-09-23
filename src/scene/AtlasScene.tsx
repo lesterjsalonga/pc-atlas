@@ -12,10 +12,13 @@ import {
 import { packInventory, pieceBounds } from "../../lib/layout";
 import { createGeometry } from "./shapes";
 import { createTabletopAR } from "./TabletopAR";
+import { rotateFanBlade } from "./fans";
 import type { ARCommands, ARStatus } from "../../lib/ar";
 
 interface Props {
   state: ExplorerState;
+  fansOn: boolean;
+  onToggleFans: () => void;
   onSelect: (id: string, mesh?: string) => void;
   onReady: (ready: boolean) => void;
   onARStatus: (status: ARStatus) => void;
@@ -33,15 +36,36 @@ interface Instance {
 }
 export default function AtlasScene({
   state,
+  fansOn,
+  onToggleFans,
   onSelect,
   onReady,
   onARStatus,
   onARCommands,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
-  const api = useRef<{ update: (s: ExplorerState) => void } | null>(null);
-  const latest = useRef({ state, onSelect, onReady, onARStatus, onARCommands });
-  latest.current = { state, onSelect, onReady, onARStatus, onARCommands };
+  const api = useRef<{
+    update: (s: ExplorerState) => void;
+    refreshFans: () => void;
+  } | null>(null);
+  const latest = useRef({
+    state,
+    fansOn,
+    onToggleFans,
+    onSelect,
+    onReady,
+    onARStatus,
+    onARCommands,
+  });
+  latest.current = {
+    state,
+    fansOn,
+    onToggleFans,
+    onSelect,
+    onReady,
+    onARStatus,
+    onARCommands,
+  };
   const [error, setError] = useState("");
   const [hover, setHover] = useState("");
   useEffect(() => {
@@ -178,6 +202,9 @@ export default function AtlasScene({
     let current = latest.current.state;
     let frames = 0;
     let matricesDirty = true;
+    let fanAngle = 0;
+    let lastRenderTime = performance.now();
+    const blades = instances.filter((i) => i.piece.rotor);
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
@@ -384,9 +411,21 @@ export default function AtlasScene({
     function render(xr = false) {
       if (!xr) frame = 0;
       if (disposed) return;
+      const now = performance.now();
+      const spinning =
+        latest.current.fansOn &&
+        current.mode !== "inventory" &&
+        model.visible &&
+        blades.some((i) => i.visible);
+      if (spinning)
+        fanAngle =
+          (fanAngle +
+            Math.min((now - lastRenderTime) / 1000, 0.05) * Math.PI * 2) %
+          (Math.PI * 2);
+      lastRenderTime = now;
       let moving = false;
       const speed = xr || reduceMotion ? 1 : 0.16;
-      if (!xr || matricesDirty) {
+      if (!xr || matricesDirty || spinning) {
         for (const i of instances) {
           if (
             i.position.distanceToSquared(i.target) > 0.00000005 ||
@@ -401,6 +440,8 @@ export default function AtlasScene({
           }
           dummy.position.copy(i.position);
           dummy.rotation.set(...i.piece.rotation);
+          if (current.mode !== "inventory")
+            rotateFanBlade(i.piece, fanAngle, dummy, i.scale);
           dummy.scale
             .set(...i.piece.size)
             .multiplyScalar(i.visible ? i.scale : 0);
@@ -432,7 +473,8 @@ export default function AtlasScene({
       canvas.dataset.drawCalls = String(renderer.info.render.calls);
       canvas.dataset.ready = "true";
       canvas.dataset.moving = String(moving || orbiting);
-      if (!xr && (moving || orbiting)) schedule();
+      canvas.dataset.fansSpinning = String(spinning);
+      if (!xr && (moving || orbiting || spinning)) schedule();
     }
     function resize() {
       if (ar?.active) return;
@@ -617,11 +659,14 @@ export default function AtlasScene({
         const selected = current.selected && BY_ID.get(current.selected);
         return selected ? `${selected.name}: ${selected.description}` : "";
       },
+      fansOn: () => latest.current.fansOn,
+      toggleFans: () => latest.current.onToggleFans(),
     });
     api.current = {
       update: (s) => {
         if (s !== current) update(s);
       },
+      refreshFans: schedule,
     };
     latest.current.onARCommands(ar.commands);
     resize();
@@ -658,6 +703,9 @@ export default function AtlasScene({
   useEffect(() => {
     api.current?.update(state);
   }, [state]);
+  useEffect(() => {
+    api.current?.refreshFans();
+  }, [fansOn]);
   return (
     <div className="scene-canvas" ref={host}>
       {hover && !error && <div className="hover-label">{hover}</div>}

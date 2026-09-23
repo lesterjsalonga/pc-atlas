@@ -1,4 +1,8 @@
 import * as T from "three";
+import {
+  AR_PLACEMENT_INSTRUCTIONS,
+  AR_GESTURE_INSTRUCTIONS,
+} from "../../lib/ar";
 
 /** Small native-XR HUD used only when DOM Overlay was not granted. */
 export function createARHud() {
@@ -22,8 +26,13 @@ export function createARHud() {
   mesh.frustumCulled = false;
   mesh.visible = false;
   let last = "";
-  function update(message: string, details: string) {
-    const key = message + details;
+  function update(
+    message: string,
+    details: string,
+    helpOpen: boolean,
+    fansOn: boolean,
+  ) {
+    const key = JSON.stringify([message, details, helpOpen, fansOn]);
     if (key === last) return;
     last = key;
     context.clearRect(0, 0, 1024, 320);
@@ -31,10 +40,19 @@ export function createARHud() {
     context.fillRect(0, 0, 1024, 320);
     context.fillStyle = "#253b33";
     context.font = "600 30px sans-serif";
-    context.fillText(message, 24, 42);
+    context.fillText(message, 24, 42, 872);
+    context.fillStyle = "#214f3e";
+    context.fillRect(928, 12, 80, 64);
+    context.fillStyle = "white";
+    context.textAlign = "center";
+    context.fillText(helpOpen ? "×" : "?", 968, 55);
+    context.textAlign = "left";
+    context.fillStyle = "#253b33";
     context.font = "26px sans-serif";
     const words = (
-      details || "Move slowly to find a tabletop. Tap the ring to place."
+      helpOpen
+        ? `${AR_PLACEMENT_INSTRUCTIONS} ${AR_GESTURE_INSTRUCTIONS}`
+        : details || "Tap ? for placement instructions."
     ).split(" ");
     let line = "",
       y = 86;
@@ -52,13 +70,14 @@ export function createARHud() {
       "Reposition",
       "Reset size / turn",
       "End AR",
+      fansOn ? "Fans: on" : "Fans: off",
     ].entries()) {
       context.fillStyle = "#214f3e";
-      context.fillRect(i * 336 + 12, 226, 328, 82);
+      context.fillRect(i * 256 + 8, 226, 240, 82);
       context.fillStyle = "white";
-      context.font = "600 28px sans-serif";
+      context.font = "600 25px sans-serif";
       context.textAlign = "center";
-      context.fillText(label, i * 336 + 176, 277);
+      context.fillText(label, i * 256 + 128, 277);
     }
     context.textAlign = "left";
     texture.needsUpdate = true;
@@ -81,12 +100,25 @@ export function createARHud() {
   }
   function hit(
     ray: T.Raycaster,
-  ): "reposition" | "reset" | "end" | "panel" | null {
+  ): "reposition" | "reset" | "end" | "fans" | "help" | "panel" | null {
     if (!mesh.visible) return null;
     const uv = ray.intersectObject(mesh)[0]?.uv;
     if (!uv) return null;
+    if (
+      uv.x >= 928 / 1024 &&
+      uv.x <= 1008 / 1024 &&
+      uv.y >= 244 / 320 &&
+      uv.y <= 308 / 320
+    )
+      return "help";
     if (uv.y > 94 / 320) return "panel";
-    return uv.x < 1 / 3 ? "reposition" : uv.x < 2 / 3 ? "reset" : "end";
+    return uv.x < 1 / 4
+      ? "reposition"
+      : uv.x < 2 / 4
+        ? "reset"
+        : uv.x < 3 / 4
+          ? "end"
+          : "fans";
   }
   return {
     mesh,

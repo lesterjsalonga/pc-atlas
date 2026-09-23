@@ -118,6 +118,45 @@ try {
     frames,
     "Scene must sleep when idle",
   );
+  const fans = page.getByRole("switch", { name: "Spin fans", exact: true });
+  await fans.click();
+  await page.waitForFunction(
+    () => document.querySelector("canvas").dataset.fansSpinning === "true",
+  );
+  const spinningFrame = await page.locator("canvas").screenshot();
+  await page.waitForTimeout(170);
+  assert.ok(
+    !spinningFrame.equals(await page.locator("canvas").screenshot()),
+    "Fan blades visibly animate",
+  );
+  await page.getByRole("button", { name: "Inventory", exact: true }).click();
+  await settle(page);
+  assert.equal(
+    await page.locator("canvas").getAttribute("data-fans-spinning"),
+    "false",
+    "Inventory pauses animation",
+  );
+  await page.getByRole("button", { name: "Assembled", exact: true }).click();
+  await settle(page);
+  assert.equal(
+    await page.locator("canvas").getAttribute("data-fans-spinning"),
+    "true",
+    "Assembly resumes animation",
+  );
+  await fans.click();
+  await settle(page);
+  const stoppedFrame = await page.locator("canvas").screenshot();
+  const stoppedCount = await page.locator("canvas").getAttribute("data-frames");
+  await page.waitForTimeout(250);
+  assert.ok(
+    stoppedFrame.equals(await page.locator("canvas").screenshot()),
+    "Off freezes the blades",
+  );
+  assert.equal(
+    await page.locator("canvas").getAttribute("data-frames"),
+    stoppedCount,
+    "Fan off returns rendering to idle",
+  );
   await page.getByRole("switch", { name: "Show Memory", exact: true }).click();
   await settle(page);
   assert.ok(
